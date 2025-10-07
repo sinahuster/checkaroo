@@ -13,15 +13,6 @@ Each task has an id, name, priority level, date due and status.
 #define MAX_TASKS 100
 #define MAX_LINE 200
 
-/* typedef struct 
-{
-    int id;
-    char name[20];
-    char priority[8]; // TODO: how could we do this? look up enum
-    char date[11];    
-    char status[10];  // TODO: see above priority
-} Task; */
-
 int main(int argc, char *argv[])
 {
     Task log[MAX_TASKS];
@@ -60,11 +51,22 @@ int main(int argc, char *argv[])
             printf("There are currently no to-dos\n");
             return 0;
         }
+        Order order = 0;
+        if (argc == 3)
+        {
+            order = strupr(argv[3]);
+        }
+
         printf("\033[1m%3s %50s %10s %11s %10s\033[0m\n", "id", "name", "priority", "date", "status");
+        order_tasks(log, order, num);
+
+ /*     printf("\033[1m%3s %50s %10s %11s %10s\033[0m\n", "id", "name", "priority", "date", "status");
         for (int i = 0; i < num; i++)
         {
             print_task(log[i]);
-        }
+        } */
+
+
     }
 
     // If add given, add the new to-do to the file 
@@ -77,35 +79,12 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        // Define a new variable and asign the given variables
-        Task t;
-    
-        strcpy(t.name, argv[2]);
-        strcpy(t.priority, argv[3]);
-        strcpy(t.date, argv[4]);
-        
-        // Check if status is given, else assume pending
-        if (argc == 6)
-        {
-            strcpy(t.status, argv[5]);
-        }
-        else 
-        {
-            strcpy(t.status, "pending");
-        }
-
-        // Find the id of the last task in order to assign the id of the current task
-        if (num == 0)
-        {
-            t.id = 1;
-        }
-        else 
-        {
-            t.id = log[num - 1].id + 1;
-        }
+        // format the new task from the command line
+        Task t = format_new_task(argv, num);
 
         // Write the new task into the text file 
         add_task(t, tasks);
+        num++;
     }
 
     // If delete given, remove that to-do from the file
