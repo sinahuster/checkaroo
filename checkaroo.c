@@ -54,10 +54,10 @@ int main(int argc, char *argv[])
         Order order = 0;
         if (argc == 3)
         {
-            order = strupr(argv[3]);
+            order = determine_order(argv[2]);
         }
 
-        printf("\033[1m%3s %50s %10s %11s %10s\033[0m\n", "id", "name", "priority", "date", "status");
+        printf("\033[1m%3s %-20s %-10s %-11s %-10s\033[0m\n", "id", "name", "priority", "date", "status");
         order_tasks(log, order, num);
 
  /*     printf("\033[1m%3s %50s %10s %11s %10s\033[0m\n", "id", "name", "priority", "date", "status");
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
         int found = 0;
         for (int i = 0; i < num; i++) {
             if (log[i].id == id) {
-                strcpy(log[i].status, "complete");
+                log[i].status = COMPLETE;
                 found = 1;
                 break;
             }
