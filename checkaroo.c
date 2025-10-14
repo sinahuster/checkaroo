@@ -8,143 +8,143 @@ Each task has an id, name, priority level, date due and status.
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "functions.h"
-
-#define MAX_TASKS 100
-#define MAX_LINE 200
+#include "tasks.h"
 
 int main(int argc, char *argv[])
 {
-    Task log[MAX_TASKS];
+    TaskList log;
+
+    initialise_tasklist(&log);
 
     // Check if any arguements except the program name is given. 
     if (argc == 1)
     {
-        printf("Please input value\n");
+        print_usage();
         return 0;
     }
 
     // Open a file for the to-do list 
-    FILE *tasks = fopen("tasks.txt", "a+");
-    if (tasks == NULL)
+    FILE *todos = fopen("to-dos.txt", "a+");
+    if (todos == NULL)
     {
-        printf("Error opening the file\n");
-        return 1;
+        fprintf(stderr, "Error opening tasks file\n");
+        exit(1);
     }
 
     // Move pointer back to start for reading
-    rewind(tasks);
+    rewind(todos);
 
-    int num = log_tasks(tasks, log);
+    log_tasks(&log, todos);
 
-    // Change the command to lowercase to ignore case sensitivity 
-    for (int i = 0; i < strlen(argv[1]); i++) 
+    // Determine the command
+    Command cmd = determine_command(argv[1]);
+
+    switch(cmd)
     {
-        argv[1][i] = tolower(argv[1][i]);
-    }
-
-    // If command list is given, read and print the contents in the order specified
-    if (strcmp(argv[1], "list") == 0)
-    {
-        if (num == 0)
+        case(COMMAND_ADD):
         {
-            printf("There are currently no to-dos\n");
-            return 0;
-        }
-        Order order = 0;
-        if (argc == 3)
-        {
-            order = determine_order(argv[2]);
-        }
-
-        printf("\033[1m%3s %-20s %-10s %-11s %-10s\033[0m\n", "id", "name", "priority", "date", "status");
-        order_tasks(log, order, num);
-
- /*     printf("\033[1m%3s %50s %10s %11s %10s\033[0m\n", "id", "name", "priority", "date", "status");
-        for (int i = 0; i < num; i++)
-        {
-            print_task(log[i]);
-        } */
-
-
-    }
-
-    // If add given, add the new to-do to the file 
-    if (strcmp(argv[1], "add") == 0)
-    {
-        // Check all information that's required is present 
-        if (argc < 5)
-        {
-            printf("usage: %s add <name> <priortiy> <date> (optional: <status>) \n", argv[0]);
-            return 1;
-        }
-
-        // format the new task from the command line
-        Task t = format_new_task(argv, num);
-
-        // Write the new task into the text file 
-        add_task(t, tasks);
-        num++;
-    }
-
-    // If delete given, remove that to-do from the file
-    if (strcmp(argv[1], "delete") == 0)
-    {
-        if (argc < 3)
-        {
-            printf("Usage: ./checkaroo delete <task_id>\n");
-            return 1;
-        }
-
-        int id = atoi(argv[2]);
-        int found = 0;
-
-        for (int i = 0; i < num; i++) {
-            if (log[i].id == id) {
-                // Shift all tasks after i to the left
-                for (int j = i; j < num - 1; j++) {
-                    log[j] = log[j + 1];
-                }
-                num--;
-                found = 1;
-                break;
+            // Check if the to-do list is full
+            if (log.length == log.capacity)
+            {
+                fprintf(stderr,"To-do list is full, cannot add anymore tasks.\n");
+                exit(1);
             }
-        }
 
-        if (!found) {
-            printf("Task ID %d not found.\n", id);
-            return 1;
-        }
-
-        rewrite_tasks(log, num, tasks);
-    }
-    // If complete given, change the status of the to-do from working to complete
-    if (strcmp(argv[1], "complete") == 0)
-    {
-        if (argc < 3)
-        {
-            printf("Usage: ./checkaroo complete <task_id>\n");
-        }
-
-        int id = atoi(argv[2]);
-
-        int found = 0;
-        for (int i = 0; i < num; i++) {
-            if (log[i].id == id) {
-                log[i].status = COMPLETE;
-                found = 1;
-                break;
+            // Check all information that's required is present 
+            if (argc < 5)
+            {
+                print_usage();
+                return 1;
             }
-        }
-        if (!found) {
-            printf("Task ID %d not found.\n", id);
-            return 1;
-        }
 
-        rewrite_tasks(log, num, tasks);
+
+            // Format the new task from the command line
+            Task new = format_new_task(log, argv);
+
+            // Write the new task into the text file 
+            add_task(todos, new);
+            log.length++;
+
+            break;
+        }
+        case(COMMAND_LIST):
+        {
+            // Check if the to-do list is empty
+            if (log.length == 0)
+            {
+                printf("There are currently no to-dos\n");
+                return 0;
+            }
+            
+            // Determine the order in which to print the tasks
+            Order order = 0;
+            if (argc == 3)
+            {
+                order = determine_order(argv[2]);
+            }
+            order_tasks(&log, order);
+
+            // Print headers then print the tasks
+            printf("\033[1m%3s %-20s %-10s %-11s %-10s\033[0m\n", "id", "name", "priority", "date", "status");
+            print_tasks(log);
+            
+            break;
+        }
+        
+
+        case(COMMAND_UPDATE):
+        {
+            // Check the usage is correct 
+            if (argc < 5)
+            {
+                print_usage();
+            }
+
+            // Check the id is valid
+            int id = atoi(argv[4]);
+            if (id > log.length)
+            {
+                fprintf(stderr, "This task id does not exist.\n");
+                exit(1);
+            }
+            
+            // Find the field to be updated 
+            Order order = determine_order(argv[2]);
+
+            // Update task and rewrite
+            update_task(&log, id, order, argv[3]);
+            rewrite_tasks(&log, todos);
+
+            break;
+        }
+        case(COMMAND_REMOVE):
+        {
+            // Check we have the correct usage
+            if (argc < 3)
+            {
+                print_usage();
+                return 1;
+            }
+
+            // Check that the id exsits
+            int id = atoi(argv[2]);
+            if (id > log.length)
+            {
+                fprintf(stderr, "This task id does not exist.\n");
+                exit(1);
+            }
+
+            // Delete and rewrite tasks
+            delete_task(&log, id);
+            rewrite_tasks(&log, todos);
+
+            break;
+        }
     }
 
-    fclose(tasks);
+    fclose(todos);
+
+    free_tasklist(&log);
 
     return 0;
 }
