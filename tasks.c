@@ -5,6 +5,7 @@
 
 #include "tasks.h"
 
+// Initialise the TaskList, setting the values
 void initialise_tasklist(TaskList *log)
 {
     log->capacity = MAX_TASKS;
@@ -18,6 +19,7 @@ void initialise_tasklist(TaskList *log)
     }
 }
 
+// Frees the TaskList
 void free_tasklist(TaskList *log)
 {
     free(log->tasks);
@@ -26,7 +28,7 @@ void free_tasklist(TaskList *log)
     log->length = 0;
 }
 
-// Returns the number of tasks logged. 
+// logs the tasks in the TaskList
 void log_tasks(TaskList *log, FILE *todos)
 {
     char line[MAX_LINE];
@@ -42,6 +44,7 @@ void log_tasks(TaskList *log, FILE *todos)
     }
 }
 
+// Allows retrieval of tasks from the text file
 Task read_task(char *line)
 {
     Task t;
@@ -51,6 +54,7 @@ Task read_task(char *line)
     return t;
 }
 
+// Formats tasks for printing
 void print_tasks(TaskList log)
 {
     for (int i = 0; i < log.length; i++)
@@ -59,6 +63,7 @@ void print_tasks(TaskList log)
     }
 }
 
+// Truncates the text file and fill it using the updated Tasklist 
 void rewrite_tasks(TaskList *log, FILE *todos)
 {
     if (ftruncate(fileno(todos), 0) != 0)
@@ -87,6 +92,7 @@ void add_task(FILE *tasks, Task task)
     return;
 }
 
+// Returns the string which corresponds to the priority type for printing
 char *priority_name(Priority p)
 {
     switch(p)
@@ -97,6 +103,7 @@ char *priority_name(Priority p)
     }
 }
 
+// Returns the string which corresponds to the status type for printing
 char *status_name(Status s)
 {
     switch(s)
@@ -138,6 +145,7 @@ Task format_new_task(TaskList log, char *argv[])
     return task;
 }
 
+// Changes the order of the tasks in the TaskList dependent on the order
 void order_tasks(TaskList *log, Order order)
 {
     switch(order)
@@ -241,6 +249,7 @@ void order_tasks(TaskList *log, Order order)
     return;
 }
 
+// Removes a task from the TaskList 
 void delete_task(TaskList *log, int id)
 {
     for (int i = id - 1; i < log->length; i++)
@@ -251,6 +260,7 @@ void delete_task(TaskList *log, int id)
     log->length--;
 }
 
+// Changes the task in TaskList that needs updating 
 void update_task(TaskList *log, int id, Order order, char *update)
 {
     switch(order)
@@ -286,6 +296,7 @@ void update_task(TaskList *log, int id, Order order, char *update)
     }
 }
 
+// Determines which date is larger
 int compare_dates(char *date1, char *date2)
 {
     int d1, m1, y1, d2, m2, y2;
@@ -304,6 +315,7 @@ int compare_dates(char *date1, char *date2)
     return d1 - d2;
 }
 
+// Changes a string to uppercase 
 char *str_upper(char *input)
 {
     for (char *c = input; *c; c++)
@@ -313,7 +325,7 @@ char *str_upper(char *input)
     return input;
 }
 
-
+// Returns the priority that the string corresponds to 
 Priority determine_priority(char *input)
 {
     input = str_upper(input);
@@ -340,6 +352,7 @@ Priority determine_priority(char *input)
     return priority;
 }
 
+// Returns the status that the string corresponds to 
 Status determine_status(char *input)
 {
     input = str_upper(input);
@@ -362,6 +375,7 @@ Status determine_status(char *input)
     return status;
 }
 
+// Returns the order that the string corresponds to 
 Order determine_order(char *input)
 {
     input = str_upper(input);
@@ -396,6 +410,7 @@ Order determine_order(char *input)
     return order;
 }
 
+// Returns the command that the string corresponds to 
 Command determine_command(char *input)
 {
     input = str_upper(input);
@@ -426,6 +441,7 @@ Command determine_command(char *input)
     return command;
 }
 
+// Formats the date so they are uniform in the text file 
 char *date_format(char *input)
 {
     int day, month, year;
@@ -454,6 +470,7 @@ char *date_format(char *input)
     return formatted;
 }
 
+// Swaps two tasks, in order to change the ordering of the TaskList
 void swap_tasks(Task *a, Task *b)
 {
     Task temp = *a;
@@ -461,6 +478,7 @@ void swap_tasks(Task *a, Task *b)
     *b = temp;
 }
 
+// Prints the usage required for the application 
 void print_usage(void)
 {
     printf("Usage: ./checkaroo <cmd>\n");

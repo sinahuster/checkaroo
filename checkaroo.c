@@ -90,8 +90,6 @@ int main(int argc, char *argv[])
             
             break;
         }
-        
-
         case(COMMAND_UPDATE):
         {
             // Check the usage is correct 
