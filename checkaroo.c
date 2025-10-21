@@ -4,10 +4,9 @@ The user will be able to add, complete or delete tasks, as well as getting a lis
 Each task has an id, name, priority level, date due and status.  
 */
 
-#include <ctype.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+
 #include "tasks.h"
 
 int main(int argc, char *argv[])
@@ -19,8 +18,9 @@ int main(int argc, char *argv[])
     // Check if any arguements except the program name is given. 
     if (argc == 1)
     {
+        free_tasklist(&log);
         print_usage();
-        return 0;
+        return 1;
     }
 
     // Open a file for the to-do list 
@@ -28,13 +28,13 @@ int main(int argc, char *argv[])
     if (todos == NULL)
     {
         fprintf(stderr, "Error opening tasks file\n");
-        exit(1);
+        return 1;
     }
 
     // Move pointer back to start for reading
     rewind(todos);
 
-    log_tasks(&log, todos);
+    load_tasks(&log, todos);
 
     // Determine the command
     Command cmd = determine_command(argv[1]);
@@ -47,11 +47,11 @@ int main(int argc, char *argv[])
             if (log.length == log.capacity)
             {
                 fprintf(stderr,"To-do list is full, cannot add anymore tasks.\n");
-                exit(1);
+                return 1;
             }
 
             // Check all information that's required is present 
-            if (argc < 5)
+            if (argc < 5 || argc > 6)
             {
                 print_usage();
                 return 1;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
 
             // Format the new task from the command line
-            Task new = format_new_task(log, argv);
+            Task new = parse_task(log, argv);
 
             // Write the new task into the text file 
             add_task(todos, new);
@@ -93,25 +93,25 @@ int main(int argc, char *argv[])
         case(COMMAND_UPDATE):
         {
             // Check the usage is correct 
-            if (argc < 5)
+            if (argc != 5)
             {
                 print_usage();
+                return 1;
             }
 
             // Check the id is valid
             int id = atoi(argv[4]);
-            if (id > log.length)
+            if (id <= 0 || id > log.length) 
             {
                 fprintf(stderr, "This task id does not exist.\n");
-                exit(1);
+                return 1;
             }
-            
             // Find the field to be updated 
             Order order = determine_order(argv[2]);
 
             // Update task and rewrite
             update_task(&log, id, order, argv[3]);
-            rewrite_tasks(&log, todos);
+            save_tasks(&log, todos);
 
             break;
         }
@@ -126,17 +126,23 @@ int main(int argc, char *argv[])
 
             // Check that the id exsits
             int id = atoi(argv[2]);
-            if (id > log.length)
+            if (id <= 0 || id > log.length) 
             {
                 fprintf(stderr, "This task id does not exist.\n");
-                exit(1);
-            }
+                return 1;
+            }       
 
             // Delete and rewrite tasks
             delete_task(&log, id);
-            rewrite_tasks(&log, todos);
+            save_tasks(&log, todos);
 
             break;
+        }
+        default:
+        {
+            fprintf(stderr, "Command is not valid\n");
+            print_usage();
+            return 1;
         }
     }
 

@@ -1,11 +1,12 @@
 #include <stdio.h>
-#include <ctype.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include "tasks.h"
 
-// Initialise the TaskList, setting the values
 void initialise_tasklist(TaskList *log)
 {
     log->capacity = MAX_TASKS;
@@ -14,47 +15,68 @@ void initialise_tasklist(TaskList *log)
 
     if (log->tasks == NULL)
     {
-        fprintf(stderr, "Memory allocation failed\n");
+        fprintf(stderr, "Error: could not allocate memory for task list\n");
         exit(1);
     }
 }
 
-// Frees the TaskList
-void free_tasklist(TaskList *log)
+void free_tasklist(TaskList *log)   
 {
+    if (log == NULL)
+    {
+        return;
+    }
     free(log->tasks);
     log->tasks = NULL;
     log->capacity = 0;
     log->length = 0;
 }
 
-// logs the tasks in the TaskList
-void log_tasks(TaskList *log, FILE *todos)
+void load_tasks(TaskList *log, FILE *todos) 
 {
     char line[MAX_LINE];
 
-    // Add all current tasks from the text file into an array 
-    while (fgets(line, sizeof(line), todos))
+    // Add all current tasks from the text file into TaskList
+    while (fgets(line, sizeof(line), todos)) 
     {
-        // Add each line to the log array
+        if (log->length >= log->capacity)
+        {
+            fprintf(stderr, "Error: max tasks reached.\n");
+            break;
+        }
+        // Add each line to the TaskList
         if (strlen(line) > 1)
         {
-            log->tasks[log->length++] = read_task(line);
+            log->tasks[log->length++] = line_to_task(line);
         }
+    }
+
+    if (!feof(todos))
+    {
+        fprintf(stderr, "Error: todos file did not end as expected.\n");
+        exit(1);
+    }
+    if (ferror(todos))
+    {
+        fprintf(stderr, "Error: reading from todos file failed.\n");
+        clearerr(todos);
+        exit(1);
     }
 }
 
-// Allows retrieval of tasks from the text file
-Task read_task(char *line)
+Task line_to_task(char *line)
 {
     Task t;
 
-    sscanf(line, "id: %d name: \"%49[^\"]\" priority: %d date: %s status: %d", &t.id, t.name, &t.priority, t.date, &t.status);
+    if (sscanf(line, "id: %d name: \"%49[^\"]\" priority: %d date: %s status: %d", &t.id, t.name, &t.priority, t.date, &t.status) != 5)
+    {
+        fprintf(stderr, "Error: unable to add task to log.\n");
+        exit(1);
+    }
 
     return t;
 }
 
-// Formats tasks for printing
 void print_tasks(TaskList log)
 {
     for (int i = 0; i < log.length; i++)
@@ -63,12 +85,11 @@ void print_tasks(TaskList log)
     }
 }
 
-// Truncates the text file and fill it using the updated Tasklist 
-void rewrite_tasks(TaskList *log, FILE *todos)
+void save_tasks(TaskList *log, FILE *todos) 
 {
     if (ftruncate(fileno(todos), 0) != 0)
     {
-        fprintf(stderr, "Could not empty the file todos.\n");
+        fprintf(stderr, "Error: could not delete contents of todo file.\n");
         exit(1);
     }
 
@@ -80,19 +101,21 @@ void rewrite_tasks(TaskList *log, FILE *todos)
     }
 }
 
-// A function to write new tasks into the file 
 void add_task(FILE *tasks, Task task)
 {
-    fprintf(tasks, "id: %d ", task.id);
-    fprintf(tasks, "name: \"%s\" ", task.name);
-    fprintf(tasks, "priority: %d ", task.priority);
-    fprintf(tasks, "date: %s ", task.date);
-    fprintf(tasks, "status: %d \n", task.status);
+    if (fprintf(tasks, "id: %d ", task.id) < 0 ||             
+        fprintf(tasks, "name: \"%s\" ", task.name) < 0 ||
+        fprintf(tasks, "priority: %d ", task.priority) < 0 ||
+        fprintf(tasks, "date: %s ", task.date) < 0 || 
+        fprintf(tasks, "status: %d \n", task.status) < 0)
+    {
+        fprintf(stderr, "Error: unable to add task to file.\n");
+        exit(1);
+    }
 
     return;
 }
 
-// Returns the string which corresponds to the priority type for printing
 char *priority_name(Priority p)
 {
     switch(p)
@@ -100,29 +123,46 @@ char *priority_name(Priority p)
         case PRIORITY_LOW: return "Low";
         case PRIORITY_MEDIUM: return "Medium";
         case PRIORITY_HIGH: return "High";
+        default: 
+        {
+            fprintf(stderr, "Error: priority value is not valid.\n Priority: low, medium or high.\n");
+            exit(1);
+        }
     }
 }
 
-// Returns the string which corresponds to the status type for printing
 char *status_name(Status s)
 {
     switch(s)
     {
         case STATUS_PENDING: return "Pending";
         case STATUS_COMPLETE: return "Complete";
+        default: 
+        {
+            fprintf(stderr, "Error: status value is not valid.\n Status: pending or complete.\n");
+            exit(1);
+        }
     }
 }
 
-// Format the information given on the commmand line to form a new Task
-Task format_new_task(TaskList log, char *argv[])
+Task parse_task(TaskList log, char *argv[]) 
 {
     Task task; 
-    strcpy(task.name, argv[2]);
+    if (strlen(argv[2]) > 50)
+    {
+        fprintf(stderr, "Error: name is too long. Name must be less than 50 characters.\n");
+        exit(1); 
+    }
+    strcpy(task.name, argv[2]); 
     task.priority = determine_priority(argv[3]);
 
-    char *date = date_format(argv[4]);
+    if (strlen(argv[4]) > 11)
+    {
+        fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
+    }
+    char date[11];
+    format_date(argv[4], date); 
     strcpy(task.date, date);
-    free(date);
 
     if (argv[5] != NULL)
     {
@@ -145,7 +185,6 @@ Task format_new_task(TaskList log, char *argv[])
     return task;
 }
 
-// Changes the order of the tasks in the TaskList dependent on the order
 void order_tasks(TaskList *log, Order order)
 {
     switch(order)
@@ -157,18 +196,16 @@ void order_tasks(TaskList *log, Order order)
         }
         case ORDER_NAME:
         {
-            // order alphabetically 
+            // Order alphabetically 
             bool swapped;
             for(int i = 0; i < log->length - 1; i++)
             {
                 swapped = false;
                 for (int j = 0; j < log->length - i - 1; j++)
                 {
-                    char name1[50];
-                    char name2[50];
-                    strcpy(name1, log->tasks[j].name);
-                    strcpy(name2, log->tasks[j + 1].name);
-                    int result = strcmp(name1, name2);
+                    char *name1 = log->tasks[j].name;
+                    char *name2 = log->tasks[j + 1].name;
+                    int result = strcmp(name1, name2);   
                     if (result > 0)
                     {
                         Task tmp = log->tasks[j];
@@ -244,35 +281,45 @@ void order_tasks(TaskList *log, Order order)
 
             break;
         }
+        default:
+        {
+            fprintf(stderr, "Error: order value is not valid.\n Order: id, name, priority, date or status.\n");
+            exit(1);
+        }
     }
 
     return;
 }
 
-// Removes a task from the TaskList 
 void delete_task(TaskList *log, int id)
 {
-    for (int i = id - 1; i < log->length; i++)
+    if (id < 1 || id > log->length)
     {
-        log->tasks[i] = log->tasks[i + 1];
+        fprintf(stderr, "Error: %d id is not valid.\n", id);
+        exit(1);
     }
+    memmove(&log->tasks[id - 1], &log->tasks[id], (log->length - id) * sizeof(Task));
 
     log->length--;
 }
 
-// Changes the task in TaskList that needs updating 
 void update_task(TaskList *log, int id, Order order, char *update)
 {
     switch(order)
     {
         case(ORDER_ID):
         {
-            fprintf(stderr, "Task id cannot be updated.\n");
+            fprintf(stderr, "Error: task ID update not supported.\n"); 
             exit(1);
         }
         case(ORDER_NAME):
         {
-            strcpy(log->tasks[id - 1].name, update);
+            if (strlen(update) > 50)
+            {
+                fprintf(stderr, "Error: new name is too long, must be less than 50 characters.\n");
+                exit(1);
+            }
+            strcpy(log->tasks[id - 1].name, update); // update could be very long
             break;
         }
         case(ORDER_PRIORITY):
@@ -283,7 +330,13 @@ void update_task(TaskList *log, int id, Order order, char *update)
         }
         case(ORDER_DATE):
         {
-            char *date = date_format(update);
+            if (strlen(update) > 11)
+            {
+                fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
+                exit(1);
+            }
+            char date[11];
+            format_date(update, date);
             strcpy(log->tasks[id - 1].date, date);
             break;
         }
@@ -293,30 +346,40 @@ void update_task(TaskList *log, int id, Order order, char *update)
             log->tasks[id - 1].status = status;
             break;
         }
+        default:
+        {
+            fprintf(stderr, "Error: order value is not valid\n");
+            exit(1);
+        }
     }
 }
 
-// Determines which date is larger
 int compare_dates(char *date1, char *date2)
 {
     int d1, m1, y1, d2, m2, y2;
 
-    sscanf(date1, "%4d-%2d-%2d", &y1, &m1, &d1);
-    sscanf(date2, "%4d-%2d-%2d", &y2, &m2, &d2);
+    if (sscanf(date1, "%4d-%2d-%2d", &y1, &m1, &d1) == 3 &&
+        sscanf(date2, "%4d-%2d-%2d", &y2, &m2, &d2) == 3)
+        {
+            if (y1 != y2)
+            {
+                return y1 - y2;
+            }
+            if (m1 != m2)
+            {
+                return m1 - m2;
+            }
+            return d1 - d2;
+        }
+    else 
+    {
+        fprintf(stderr, "Error: unable to compare dates. Re-format dates using YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD\n");
+        exit(1);
+    }
 
-    if (y1 != y2)
-    {
-        return y1 - y2;
-    }
-    if (m1 != m2)
-    {
-        return m1 - m2;
-    }
-    return d1 - d2;
 }
 
-// Changes a string to uppercase 
-char *str_upper(char *input)
+char *str_upper(char *input) // TODO: check if this need to be returned
 {
     for (char *c = input; *c; c++)
     {
@@ -345,14 +408,13 @@ Priority determine_priority(char *input)
     }
     else
     {
-        fprintf(stderr, "Invalid priority: %s\n", input);
+        fprintf(stderr, "Error: invalid priority: %s\n", input);
         exit(1);
     }
 
     return priority;
 }
 
-// Returns the status that the string corresponds to 
 Status determine_status(char *input)
 {
     input = str_upper(input);
@@ -368,14 +430,13 @@ Status determine_status(char *input)
     }
     else 
     {
-        fprintf(stderr, "Invalid status: %s\n", input);
+        fprintf(stderr, "Error: invalid status: %s\n", input);
         exit(1);
     }
 
     return status;
 }
 
-// Returns the order that the string corresponds to 
 Order determine_order(char *input)
 {
     input = str_upper(input);
@@ -403,14 +464,13 @@ Order determine_order(char *input)
     }
     else
     {
-        fprintf(stderr, "Invalid order: %s\n", input);
+        fprintf(stderr, "Error: invalid order: %s\n", input);
         exit(1);
     }
 
     return order;
 }
 
-// Returns the command that the string corresponds to 
 Command determine_command(char *input)
 {
     input = str_upper(input);
@@ -434,18 +494,17 @@ Command determine_command(char *input)
     }
     else
     {
-        fprintf(stderr, "Invalid command: %s\n", input);
+        fprintf(stderr, "Error: invalid command: %s\n", input); 
+        print_usage();
         exit(1);
     }
 
     return command;
 }
 
-// Formats the date so they are uniform in the text file 
-char *date_format(char *input)
+void format_date(char *input, char *date)
 {
     int day, month, year;
-    char *formatted = malloc(11);
 
     // Try parsing with different separators
     if (sscanf(input, "%d-%d-%d", &year, &month, &day) == 3 ||
@@ -455,22 +514,21 @@ char *date_format(char *input)
         
         // Check day and month are the correct way around
         if (day < 1 || day > 31 || month < 1 || month > 12) {
-            fprintf(stderr, "Invalid date format. Use YYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
+            fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
             exit(1);
         }
 
-        snprintf(formatted, 11, "%04d-%02d-%02d", year, month, day);
+        snprintf(date, 11, "%04d-%02d-%02d", year, month, day);
     } 
     else 
     {
-        fprintf(stderr, "Invalid date format. Use YYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
+        fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
         exit(1);
     }
 
-    return formatted;
+    return;
 }
 
-// Swaps two tasks, in order to change the ordering of the TaskList
 void swap_tasks(Task *a, Task *b)
 {
     Task temp = *a;
@@ -478,12 +536,11 @@ void swap_tasks(Task *a, Task *b)
     *b = temp;
 }
 
-// Prints the usage required for the application 
 void print_usage(void)
 {
     printf("Usage: ./checkaroo <cmd>\n");
     printf("cmd: add, remove, update, list\n");
-    printf("add <name> <priortiy> <date> (optional: <status>) \n");
+    printf("add <name> <priority> <date> (optional: <status>) \n");
     printf("remove <id>\n");
     printf("update <field> <updated_value> <id>\n");
     printf("field: name, date, status, priority\n");
