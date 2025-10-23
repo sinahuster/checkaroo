@@ -53,11 +53,13 @@ void load_tasks(TaskList *log, FILE *todos)
 
     if (!feof(todos))
     {
+        fclose(todos);
         fprintf(stderr, "Error: todos file did not end as expected.\n");
         exit(1);
     }
     if (ferror(todos))
     {
+        fclose(todos);
         fprintf(stderr, "Error: reading from todos file failed.\n");
         clearerr(todos);
         exit(1);
@@ -89,6 +91,7 @@ void save_tasks(TaskList *log, FILE *todos)
 {
     if (ftruncate(fileno(todos), 0) != 0)
     {
+        fclose(todos);
         fprintf(stderr, "Error: could not delete contents of todo file.\n");
         exit(1);
     }
@@ -109,6 +112,7 @@ void add_task(FILE *tasks, Task task)
         fprintf(tasks, "date: %s ", task.date) < 0 || 
         fprintf(tasks, "status: %d \n", task.status) < 0)
     {
+        fclose(tasks);
         fprintf(stderr, "Error: unable to add task to file.\n");
         exit(1);
     }
@@ -319,7 +323,7 @@ void update_task(TaskList *log, int id, Order order, char *update)
                 fprintf(stderr, "Error: new name is too long, must be less than 50 characters.\n");
                 exit(1);
             }
-            strcpy(log->tasks[id - 1].name, update); // update could be very long
+            strcpy(log->tasks[id - 1].name, update); 
             break;
         }
         case(ORDER_PRIORITY):
@@ -379,19 +383,18 @@ int compare_dates(char *date1, char *date2)
 
 }
 
-char *str_upper(char *input) // TODO: check if this need to be returned
+void str_upper(char *input) 
 {
     for (char *c = input; *c; c++)
     {
         *c = toupper((unsigned char) *c);
     }
-    return input;
 }
 
 // Returns the priority that the string corresponds to 
 Priority determine_priority(char *input)
 {
-    input = str_upper(input);
+    str_upper(input);
     Priority priority;
 
     if (strcmp(input, "LOW") == 0)
@@ -417,7 +420,7 @@ Priority determine_priority(char *input)
 
 Status determine_status(char *input)
 {
-    input = str_upper(input);
+    str_upper(input);
     Status status;
 
     if (strcmp(input, "PENDING") == 0)
@@ -439,7 +442,7 @@ Status determine_status(char *input)
 
 Order determine_order(char *input)
 {
-    input = str_upper(input);
+    str_upper(input);
     Order order;
 
     if (strcmp(input, "ID") == 0)
@@ -473,7 +476,7 @@ Order determine_order(char *input)
 
 Command determine_command(char *input)
 {
-    input = str_upper(input);
+    str_upper(input);
     Command command;
 
     if (strcmp(input, "ADD") == 0)

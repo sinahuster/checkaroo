@@ -89,7 +89,7 @@ void update_task(TaskList *log, int id, Order order, char *update);
 int compare_dates(char *date1, char *date2);
 
 // Changes a string to uppercase 
-char *str_upper(char *input);
+void str_upper(char *input);
 
 // Returns the priority that the string corresponds to 
 Priority determine_priority(char *input);

@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     FILE *todos = fopen("to-dos.txt", "a+");
     if (todos == NULL)
     {
-        fprintf(stderr, "Error opening tasks file\n");
+        fprintf(stderr, "Error: opening tasks file failed.\n");
         return 1;
     }
 
@@ -46,7 +46,8 @@ int main(int argc, char *argv[])
             // Check if the to-do list is full
             if (log.length == log.capacity)
             {
-                fprintf(stderr,"To-do list is full, cannot add anymore tasks.\n");
+                fclose(todos);
+                fprintf(stderr, "Error: to-do list is full, cannot add anymore tasks.\n");
                 return 1;
             }
 
@@ -72,7 +73,9 @@ int main(int argc, char *argv[])
             // Check if the to-do list is empty
             if (log.length == 0)
             {
+                fclose(todos);
                 printf("There are currently no to-dos\n");
+                free_tasklist(&log);
                 return 0;
             }
             
@@ -103,7 +106,8 @@ int main(int argc, char *argv[])
             int id = atoi(argv[4]);
             if (id <= 0 || id > log.length) 
             {
-                fprintf(stderr, "This task id does not exist.\n");
+                fclose(todos);
+                fprintf(stderr, "Error: this task id does not exist.\n");
                 return 1;
             }
             // Find the field to be updated 
@@ -128,6 +132,7 @@ int main(int argc, char *argv[])
             int id = atoi(argv[2]);
             if (id <= 0 || id > log.length) 
             {
+                fclose(todos);
                 fprintf(stderr, "This task id does not exist.\n");
                 return 1;
             }       
@@ -140,7 +145,8 @@ int main(int argc, char *argv[])
         }
         default:
         {
-            fprintf(stderr, "Command is not valid\n");
+            fclose(todos);
+            fprintf(stderr, "Error: command is not valid.\n");
             print_usage();
             return 1;
         }
