@@ -26,7 +26,7 @@ int main() {
 }
 
 // Create a Task
-Task create_task(int id, const char *date, const char *name, int priority, int status) 
+Task create_task(int id, const char *date, const char *name, int priority, int status)
 {
     Task task;
     task.id = id;
@@ -38,7 +38,7 @@ Task create_task(int id, const char *date, const char *name, int priority, int s
 }
 
 // Add a task
-void test_add_task() 
+void test_add_task()
 {
     TaskList log;
     initialise_tasklist(&log);
@@ -54,6 +54,7 @@ void test_add_task()
     assert(strcmp(log.tasks[0].name, "Laundry") == 0);
 
     fclose(todos);
+    free_tasklist(&log);
     printf("test_add_task passed\n");
 }
 
@@ -83,6 +84,7 @@ void test_add_task_full() {
     assert(log.length == 100);  // should remain 100
 
     fclose(todos);
+    free_tasklist(&log);
     printf("test_add_task_full passed\n");
 }
 
@@ -101,6 +103,7 @@ void test_update_task() {
     assert(strcmp(log.tasks[0].name, "Dishes") == 0);
 
     fclose(todos);
+    free_tasklist(&log);
     printf("test_update_task passed\n");
 }
 
@@ -122,6 +125,7 @@ void test_delete_task() {
     assert(log.tasks[0].id == 2);
 
     fclose(todos);
+    free_tasklist(&log);
     printf("test_delete_task passed\n");
 }
 
@@ -143,5 +147,6 @@ void test_order_tasks() {
     assert(log.tasks[0].priority <= log.tasks[1].priority);
 
     fclose(todos);
+    free_tasklist(&log);
     printf("test_order_tasks passed\n");
 }

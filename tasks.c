@@ -20,7 +20,7 @@ void initialise_tasklist(TaskList *log)
     }
 }
 
-void free_tasklist(TaskList *log)   
+void free_tasklist(TaskList *log)
 {
     if (log == NULL)
     {
@@ -32,15 +32,16 @@ void free_tasklist(TaskList *log)
     log->length = 0;
 }
 
-void load_tasks(TaskList *log, FILE *todos) 
+void load_tasks(TaskList *log, FILE *todos)
 {
     char line[MAX_LINE];
 
     // Add all current tasks from the text file into TaskList
-    while (fgets(line, sizeof(line), todos)) 
+    while (fgets(line, sizeof(line), todos))
     {
         if (log->length >= log->capacity)
         {
+            free_tasklist(log);
             fprintf(stderr, "Error: max tasks reached.\n");
             break;
         }
@@ -53,15 +54,16 @@ void load_tasks(TaskList *log, FILE *todos)
 
     if (!feof(todos))
     {
+        free_tasklist(log);
         fclose(todos);
         fprintf(stderr, "Error: todos file did not end as expected.\n");
         exit(1);
     }
     if (ferror(todos))
     {
+        free_tasklist(log);
         fclose(todos);
         fprintf(stderr, "Error: reading from todos file failed.\n");
-        clearerr(todos);
         exit(1);
     }
 }
@@ -70,7 +72,7 @@ Task line_to_task(char *line)
 {
     Task t;
 
-    if (sscanf(line, "id: %d name: \"%49[^\"]\" priority: %d date: %s status: %d", &t.id, t.name, &t.priority, t.date, &t.status) != 5)
+    if (sscanf(line, "id: %d name: \"%49[^\"]\" priority: %d date: %s status: %d", &t.id, t.name,(int *)&t.priority, t.date, (int *)&t.status) != 5)
     {
         fprintf(stderr, "Error: unable to add task to log.\n");
         exit(1);
@@ -87,10 +89,11 @@ void print_tasks(TaskList log)
     }
 }
 
-void save_tasks(TaskList *log, FILE *todos) 
+void save_tasks(TaskList *log, FILE *todos)
 {
     if (ftruncate(fileno(todos), 0) != 0)
     {
+        free_tasklist(log);
         fclose(todos);
         fprintf(stderr, "Error: could not delete contents of todo file.\n");
         exit(1);
@@ -106,10 +109,10 @@ void save_tasks(TaskList *log, FILE *todos)
 
 void add_task(FILE *tasks, Task task)
 {
-    if (fprintf(tasks, "id: %d ", task.id) < 0 ||             
+    if (fprintf(tasks, "id: %d ", task.id) < 0 ||
         fprintf(tasks, "name: \"%s\" ", task.name) < 0 ||
         fprintf(tasks, "priority: %d ", task.priority) < 0 ||
-        fprintf(tasks, "date: %s ", task.date) < 0 || 
+        fprintf(tasks, "date: %s ", task.date) < 0 ||
         fprintf(tasks, "status: %d \n", task.status) < 0)
     {
         fclose(tasks);
@@ -127,7 +130,7 @@ char *priority_name(Priority p)
         case PRIORITY_LOW: return "Low";
         case PRIORITY_MEDIUM: return "Medium";
         case PRIORITY_HIGH: return "High";
-        default: 
+        default:
         {
             fprintf(stderr, "Error: priority value is not valid.\n Priority: low, medium or high.\n");
             exit(1);
@@ -141,7 +144,7 @@ char *status_name(Status s)
     {
         case STATUS_PENDING: return "Pending";
         case STATUS_COMPLETE: return "Complete";
-        default: 
+        default:
         {
             fprintf(stderr, "Error: status value is not valid.\n Status: pending or complete.\n");
             exit(1);
@@ -149,30 +152,32 @@ char *status_name(Status s)
     }
 }
 
-Task parse_task(TaskList log, char *argv[]) 
+Task parse_task(TaskList log, char *argv[])
 {
-    Task task; 
+    Task task;
     if (strlen(argv[2]) > 50)
     {
+        free_tasklist(&log);
         fprintf(stderr, "Error: name is too long. Name must be less than 50 characters.\n");
-        exit(1); 
+        exit(1);
     }
-    strcpy(task.name, argv[2]); 
+    strcpy(task.name, argv[2]);
     task.priority = determine_priority(argv[3]);
 
     if (strlen(argv[4]) > 11)
     {
+        free_tasklist(&log);
         fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
     }
     char date[11];
-    format_date(argv[4], date); 
+    format_date(argv[4], date);
     strcpy(task.date, date);
 
     if (argv[5] != NULL)
     {
         task.status = determine_status(argv[5]);
     }
-    else 
+    else
     {
         task.status = STATUS_PENDING;
     }
@@ -195,12 +200,12 @@ void order_tasks(TaskList *log, Order order)
     {
         case ORDER_ID:
         {
-            // No reording needed 
+            // No reording needed
             break;
         }
         case ORDER_NAME:
         {
-            // Order alphabetically 
+            // Order alphabetically
             bool swapped;
             for(int i = 0; i < log->length - 1; i++)
             {
@@ -209,7 +214,7 @@ void order_tasks(TaskList *log, Order order)
                 {
                     char *name1 = log->tasks[j].name;
                     char *name2 = log->tasks[j + 1].name;
-                    int result = strcmp(name1, name2);   
+                    int result = strcmp(name1, name2);
                     if (result > 0)
                     {
                         Task tmp = log->tasks[j];
@@ -224,7 +229,7 @@ void order_tasks(TaskList *log, Order order)
                 }
             }
             break;
-    
+
         }
         case ORDER_PRIORITY:
         {
@@ -243,7 +248,7 @@ void order_tasks(TaskList *log, Order order)
         }
         case ORDER_DATE:
         {
-            // Order by the date due 
+            // Order by the date due
             // Order by year first, then month, then day
             bool swapped;
             for(int i = 0; i < log->length - 1; i++)
@@ -287,6 +292,7 @@ void order_tasks(TaskList *log, Order order)
         }
         default:
         {
+            free_tasklist(log);
             fprintf(stderr, "Error: order value is not valid.\n Order: id, name, priority, date or status.\n");
             exit(1);
         }
@@ -299,6 +305,7 @@ void delete_task(TaskList *log, int id)
 {
     if (id < 1 || id > log->length)
     {
+        free_tasklist(log);
         fprintf(stderr, "Error: %d id is not valid.\n", id);
         exit(1);
     }
@@ -313,17 +320,19 @@ void update_task(TaskList *log, int id, Order order, char *update)
     {
         case(ORDER_ID):
         {
-            fprintf(stderr, "Error: task ID update not supported.\n"); 
+            free_tasklist(log);
+            fprintf(stderr, "Error: task ID update not supported.\n");
             exit(1);
         }
         case(ORDER_NAME):
         {
             if (strlen(update) > 50)
             {
+                free_tasklist(log);
                 fprintf(stderr, "Error: new name is too long, must be less than 50 characters.\n");
                 exit(1);
             }
-            strcpy(log->tasks[id - 1].name, update); 
+            strcpy(log->tasks[id - 1].name, update);
             break;
         }
         case(ORDER_PRIORITY):
@@ -336,6 +345,7 @@ void update_task(TaskList *log, int id, Order order, char *update)
         {
             if (strlen(update) > 11)
             {
+                free_tasklist(log);
                 fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
                 exit(1);
             }
@@ -352,6 +362,7 @@ void update_task(TaskList *log, int id, Order order, char *update)
         }
         default:
         {
+            free_tasklist(log);
             fprintf(stderr, "Error: order value is not valid\n");
             exit(1);
         }
@@ -375,7 +386,7 @@ int compare_dates(char *date1, char *date2)
             }
             return d1 - d2;
         }
-    else 
+    else
     {
         fprintf(stderr, "Error: unable to compare dates. Re-format dates using YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD\n");
         exit(1);
@@ -383,7 +394,7 @@ int compare_dates(char *date1, char *date2)
 
 }
 
-void str_upper(char *input) 
+void str_upper(char *input)
 {
     for (char *c = input; *c; c++)
     {
@@ -391,7 +402,7 @@ void str_upper(char *input)
     }
 }
 
-// Returns the priority that the string corresponds to 
+// Returns the priority that the string corresponds to
 Priority determine_priority(char *input)
 {
     str_upper(input);
@@ -404,7 +415,7 @@ Priority determine_priority(char *input)
     else if (strcmp(input, "MEDIUM") == 0)
     {
         priority = PRIORITY_MEDIUM;
-    }    
+    }
     else if (strcmp(input, "HIGH") == 0)
     {
         priority = PRIORITY_HIGH;
@@ -431,7 +442,7 @@ Status determine_status(char *input)
     {
         status = STATUS_COMPLETE;
     }
-    else 
+    else
     {
         fprintf(stderr, "Error: invalid status: %s\n", input);
         exit(1);
@@ -452,7 +463,7 @@ Order determine_order(char *input)
     else if (strcmp(input, "NAME") == 0)
     {
         order = ORDER_NAME;
-    }    
+    }
     else if (strcmp(input, "PRIORITY") == 0)
     {
         order = ORDER_PRIORITY;
@@ -486,7 +497,7 @@ Command determine_command(char *input)
     else if (strcmp(input, "LIST") == 0)
     {
         command = COMMAND_LIST;
-    }    
+    }
     else if (strcmp(input, "UPDATE") == 0)
     {
         command = COMMAND_UPDATE;
@@ -497,7 +508,7 @@ Command determine_command(char *input)
     }
     else
     {
-        fprintf(stderr, "Error: invalid command: %s\n", input); 
+        fprintf(stderr, "Error: invalid command: %s\n", input);
         print_usage();
         exit(1);
     }
@@ -512,24 +523,45 @@ void format_date(char *input, char *date)
     // Try parsing with different separators
     if (sscanf(input, "%d-%d-%d", &year, &month, &day) == 3 ||
         sscanf(input, "%d/%d/%d", &year, &month, &day) == 3 ||
-        sscanf(input, "%d.%d.%d", &year, &month, &day) == 3) 
+        sscanf(input, "%d.%d.%d", &year, &month, &day) == 3)
     {
-        
-        // Check day and month are the correct way around
-        if (day < 1 || day > 31 || month < 1 || month > 12) {
-            fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
+        // Validate year
+        if (year < 1000 || year > 9999)
+        {
+            fprintf(stderr, "Error: year must be 4 digits (YYYY)\n");
             exit(1);
         }
 
+        // Validate month
+        if (month < 1 || month > 12)
+        {
+            fprintf(stderr, "Error: month must be between 1 and 12\n");
+            exit(1);
+        }
+
+        // Determine max days in the month
+        int max_days[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+        // Handle leap year for February
+        if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+            max_days[1] = 29;
+        }
+
+        // Validate day
+        if (day < 1 || day > max_days[month - 1])
+        {
+            fprintf(stderr, "Error: day %d is invalid for month %02d\n", day, month);
+            exit(1);
+        }
+
+        // Format into YYYY-MM-DD
         snprintf(date, 11, "%04d-%02d-%02d", year, month, day);
-    } 
-    else 
+    }
+    else
     {
-        fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD");
+        fprintf(stderr, "Error: invalid date format. Use YYYY-MM-DD, YYYY/MM/DD, or YYYY.MM.DD\n");
         exit(1);
     }
-
-    return;
 }
 
 void swap_tasks(Task *a, Task *b)
