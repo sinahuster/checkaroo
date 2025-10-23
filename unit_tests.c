@@ -37,24 +37,13 @@ Task create_task(int id, const char *date, const char *name, int priority, int s
     return task;
 }
 
-// Create a temporary file
-FILE *create_temp_file(const char *filename) 
-{
-    FILE *todos = fopen(filename, "w+");
-    if (!todos) {
-        fprintf(stderr, "Failed to create temporary file %s\n", filename);
-        exit(1);
-    }
-    return todos;
-}
-
 // Add a task
 void test_add_task() 
 {
     TaskList log;
     initialise_tasklist(&log);
 
-    FILE *todos = create_temp_file("test_add.txt");
+    FILE *todos = tmpfile();
 
     Task task = create_task(1, "2025-10-20", "Laundry", 1, 0);
     add_task(todos, task);
@@ -65,7 +54,6 @@ void test_add_task()
     assert(strcmp(log.tasks[0].name, "Laundry") == 0);
 
     fclose(todos);
-    remove("test_add.txt");
     printf("test_add_task passed\n");
 }
 
@@ -74,7 +62,7 @@ void test_add_task_full() {
     TaskList log;
     initialise_tasklist(&log);
 
-    FILE *todos = create_temp_file("test_full.txt");
+    FILE *todos = tmpfile();
 
     // Add tasks up to capacity
     for (int i = 0; i < 100; i++) {
@@ -95,7 +83,6 @@ void test_add_task_full() {
     assert(log.length == 100);  // should remain 100
 
     fclose(todos);
-    remove("test_full.txt");
     printf("test_add_task_full passed\n");
 }
 
@@ -104,7 +91,7 @@ void test_update_task() {
     TaskList log;
     initialise_tasklist(&log);
 
-    FILE *todos = create_temp_file("test_update.txt");
+    FILE *todos = tmpfile();
     Task task = create_task(1, "2025-10-20", "Washing", 1, 0);
     add_task(todos, task);
     rewind(todos);
@@ -114,7 +101,6 @@ void test_update_task() {
     assert(strcmp(log.tasks[0].name, "Dishes") == 0);
 
     fclose(todos);
-    remove("test_update.txt");
     printf("test_update_task passed\n");
 }
 
@@ -123,7 +109,7 @@ void test_delete_task() {
     TaskList log;
     initialise_tasklist(&log);
 
-    FILE *todos = create_temp_file("test_delete.txt");
+    FILE *todos = tmpfile();
     Task task_1 = create_task(1, "2025-10-20", "Washing", 1, 0);
     Task task_2 = create_task(2, "2025-10-21", "Dishes", 1, 0);
     add_task(todos, task_1);
@@ -136,7 +122,6 @@ void test_delete_task() {
     assert(log.tasks[0].id == 2);
 
     fclose(todos);
-    remove("test_delete.txt");
     printf("test_delete_task passed\n");
 }
 
@@ -145,7 +130,7 @@ void test_order_tasks() {
     TaskList log;
     initialise_tasklist(&log);
 
-    FILE *todos = create_temp_file("test_order.txt");
+    FILE *todos = tmpfile();
     Task task_1 = create_task(1, "2025-10-20", "Washing", 2, 0);
     Task task_2 = create_task(2, "2025-10-21", "Dishes", 1, 0);
     add_task(todos, task_1);
@@ -158,6 +143,5 @@ void test_order_tasks() {
     assert(log.tasks[0].priority <= log.tasks[1].priority);
 
     fclose(todos);
-    remove("test_order.txt");
     printf("test_order_tasks passed\n");
 }
