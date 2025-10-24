@@ -1,3 +1,7 @@
 checkaroo
 unit_tests
 to-dos.txt
+.vscode/
+checkaroo.dSYM/
+unit_tests.dSYM/
+.DS_Store
